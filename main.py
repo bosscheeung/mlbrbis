@@ -67,3 +67,9 @@ def get_lineups(date: str = Query(..., description="Date in YYYY-MM-DD format"))
                 result.append(game_info)
 
     return result
+
+from fastapi.responses import FileResponse
+
+@app.get("/openapi.yaml")
+def serve_openapi_yaml():
+    return FileResponse("openapi.yaml", media_type="text/yaml")
