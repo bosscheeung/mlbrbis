@@ -1,27 +1,27 @@
 openapi: 3.1.0
 info:
   title: MLB Lineups Tool
-  description: Returns confirmed MLB starting lineups with player names, positions, and batting order.
+  description: Get confirmed MLB lineups for a given date.
   version: 1.0.0
 servers:
-  - url: https://your-deployment-url.com
-    description: Replace with actual deployment URL
+  - url: https://your-app.onrender.com
+    description: Your deployed server
 paths:
   /lineups:
     get:
       operationId: getMlbLineups
-      summary: Get MLB starting lineups for a date
+      summary: Get MLB lineups for a specific date
       parameters:
         - name: date
           in: query
           required: true
-          description: Date in YYYY-MM-DD format
+          description: Date of the MLB games in YYYY-MM-DD format
           schema:
             type: string
             format: date
       responses:
         '200':
-          description: List of games with lineups
+          description: Confirmed lineups with players and batting order
           content:
             application/json:
               schema:
