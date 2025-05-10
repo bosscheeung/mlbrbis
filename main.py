@@ -4,7 +4,7 @@ import requests
 
 app = FastAPI()
 
-# Allow GPT plugin calls
+# Allow GPT/plugin access
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,7 +18,7 @@ def get_lineups(date: str = Query(..., description="Date in YYYY-MM-DD format"))
     params = {
         "sportId": 1,
         "date": date,
-        "hydrate": "lineups"
+        "hydrate": "team.lineups"
     }
 
     response = requests.get(url, params=params)
@@ -36,15 +36,18 @@ def get_lineups(date: str = Query(..., description="Date in YYYY-MM-DD format"))
             }
 
             for side in ["home", "away"]:
-                team_data = game["teams"].get(side, {})
-                lineup_data = team_data.get("lineup", [])
+                team_data = game['teams'][side]
+                players = team_data.get("lineups", {}).get("lineup", [])
+                parsed_players = []
 
-                for player in lineup_data:
-                    game_obj[f"{side}Lineup"].append({
+                for player in players:
+                    parsed_players.append({
                         "fullName": player.get("fullName"),
                         "position": player.get("position", {}).get("abbreviation", ""),
                         "battingOrder": player.get("battingOrder", "")
                     })
+
+                game_obj[f"{side}Lineup"] = parsed_players
 
             result.append(game_obj)
 
