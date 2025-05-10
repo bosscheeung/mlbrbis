@@ -1,27 +1,20 @@
 openapi: 3.1.0
 info:
-  title: MLB Lineups Tool
-  description: Get confirmed MLB lineups for a given date.
+  title: FantasyPros MLB Lineups
+  description: Retrieves today's projected and confirmed MLB lineups from FantasyPros.
   version: 1.0.0
 servers:
-  - url: https://your-app.onrender.com
-    description: Your deployed server
+  - url: https://www.fantasypros.com
+    description: FantasyPros server
 paths:
-  /lineups:
+  /mlb/lineups/json.php:
     get:
-      operationId: getMlbLineups
-      summary: Get MLB lineups for a specific date
-      parameters:
-        - name: date
-          in: query
-          required: true
-          description: Date of the MLB games in YYYY-MM-DD format
-          schema:
-            type: string
-            format: date
+      operationId: getFantasyProsLineups
+      summary: Get today's MLB lineups from FantasyPros
+      description: Returns all MLB lineups for today, including confirmation status and batting order.
       responses:
         '200':
-          description: Confirmed lineups with players and batting order
+          description: Lineups returned successfully
           content:
             application/json:
               schema:
@@ -29,31 +22,22 @@ paths:
                 items:
                   type: object
                   properties:
-                    game:
+                    team:
                       type: string
-                    homeTeam:
+                      description: 3-letter abbreviation
+                    team_name:
                       type: string
-                    awayTeam:
-                      type: string
-                    homeLineup:
+                    confirmed:
+                      type: boolean
+                      description: True if the lineup is confirmed by the team
+                    players:
                       type: array
                       items:
                         type: object
                         properties:
-                          fullName:
+                          name:
                             type: string
+                          batting_order:
+                            type: integer
                           position:
-                            type: string
-                          battingOrder:
-                            type: string
-                    awayLineup:
-                      type: array
-                      items:
-                        type: object
-                        properties:
-                          fullName:
-                            type: string
-                          position:
-                            type: string
-                          battingOrder:
                             type: string
