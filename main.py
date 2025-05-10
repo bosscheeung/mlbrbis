@@ -4,7 +4,6 @@ import requests
 
 app = FastAPI()
 
-# Allow GPT/plugin calls
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -26,6 +25,10 @@ def get_lineups(date: str = Query(..., description="Date in YYYY-MM-DD format"))
 
     for game_date in schedule_data.get("dates", []):
         for game in game_date.get("games", []):
+            # ✅ Only include games that haven’t started yet
+            if game.get("status", {}).get("abstractGameState") != "Preview":
+                continue
+
             gamePk = game["gamePk"]
             game_info = {
                 "game": f"{game['teams']['away']['team']['name']} @ {game['teams']['home']['team']['name']}",
@@ -35,23 +38,32 @@ def get_lineups(date: str = Query(..., description="Date in YYYY-MM-DD format"))
                 "awayLineup": []
             }
 
-            # Fetch boxscore for lineups
+            # Get boxscore
             boxscore_url = f"https://statsapi.mlb.com/api/v1/game/{gamePk}/boxscore"
             boxscore_response = requests.get(boxscore_url)
-            boxscore_data = boxscore_response.json()
+            if boxscore_response.status_code != 200:
+                continue
 
-            players = boxscore_data.get("teams", {})
+            boxscore_data = boxscore_response.json()
+            teams = boxscore_data.get("teams", {})
+            total_confirmed = 0
+
             for side in ["home", "away"]:
-                team = players.get(side, {})
-                for player in team.get("players", {}).values():
-                    stats = player.get("stats", {})
+                lineup = []
+                players = teams.get(side, {}).get("players", {})
+                for player in players.values():
                     if "battingOrder" in player:
-                        game_info[f"{side}Lineup"].append({
+                        lineup.append({
                             "fullName": player.get("person", {}).get("fullName", ""),
                             "position": player.get("position", {}).get("abbreviation", ""),
                             "battingOrder": player.get("battingOrder", "")
                         })
 
-            result.append(game_info)
+                game_info[f"{side}Lineup"] = lineup
+                total_confirmed += len(lineup)
+
+            # ✅ Only include if lineups are confirmed (i.e. players have battingOrder)
+            if total_confirmed > 0:
+                result.append(game_info)
 
     return result
