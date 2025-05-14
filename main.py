@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from datetime import date
@@ -6,12 +6,13 @@ import requests
 import re
 from bs4 import BeautifulSoup
 
-from lineup_scraper import get_today_lineups
 from id_mapper import load_chadwick_mapping, normalize_name
 from savant_scraper import get_recent_form_real, get_pitch_type_edge_real
+from weather_scraper import get_weather_scrape
 
 app = FastAPI()
 
+# Enable GPT plugin access
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,19 +25,25 @@ app.add_middleware(
 def serve_yaml():
     return FileResponse("openapi.yaml", media_type="text/yaml")
 
-@app.get("/api/v1/audit/today")
-def audit_today():
-    lineups = get_today_lineups()
+@app.post("/api/v1/audit/parse")
+async def audit_from_text(request: Request):
+    body = await request.json()
+    text = body.get("text", "")
+    if not text.strip():
+        return {"error": "Missing lineup text"}
+
     chadwick = load_chadwick_mapping()
+    games = parse_full_lineup_block(text)
     results = []
 
-    for team_lineup in lineups:
-        team = team_lineup["team"]
-        confirmed = team_lineup.get("confirmed", False)
+    for game in games:
+        team = game["team"]
+        players = game["players"]
         weather = get_weather_scrape(team)
 
-        for player in team_lineup["players"]:
+        for player in players:
             name = player["name"]
+            slot = player["slot"]
             key = normalize_name(name)
             mlbam_id = chadwick.get(key)
 
@@ -48,12 +55,12 @@ def audit_today():
                 "name": name,
                 "team": team,
                 "mlbamId": mlbam_id,
-                "slot": player["slot"],
-                "confirmed": confirmed,
+                "slot": slot,
+                "confirmed": False,
                 "audit": {
                     "powerSignal": power or {"note": "Missing MLBAM ID"},
                     "volumeOpportunity": {
-                        "slot": player["slot"],
+                        "slot": slot,
                         "projectedPAs": get_projected_pa(name)
                     },
                     "opponentWeakness": get_opponent_stats(team),
@@ -64,6 +71,46 @@ def audit_today():
             })
 
     return results
+
+def parse_full_lineup_block(text):
+    lines = text.splitlines()
+    team_blocks = []
+    current_team = ""
+    players = []
+    reading_players = False
+    slot = 0
+
+    for line in lines:
+        clean = line.strip()
+
+        if "Lineup" in clean and not clean.startswith("#"):
+            if current_team and players:
+                team_blocks.append({
+                    "team": current_team,
+                    "players": players
+                })
+            current_team = clean.replace("Lineup", "").strip()
+            players = []
+            slot = 0
+            reading_players = True
+            continue
+
+        if reading_players:
+            match = re.match(r"(\d+)\s+([A-Za-z .'-]+)(\s+\(.+\))?", clean)
+            if match:
+                slot += 1
+                player_name = match.group(2).strip()
+                players.append({"name": player_name, "slot": slot})
+            elif clean.lower().startswith("weather") or clean.lower().startswith("gametime"):
+                reading_players = False
+
+    if current_team and players:
+        team_blocks.append({
+            "team": current_team,
+            "players": players
+        })
+
+    return team_blocks
 def get_power_metrics(mlbam_id):
     try:
         url = "https://baseballsavant.mlb.com/leaderboard/statcast?type=batter&stat=barrel_rate&year=2025&min=1&sort=7&csv=false"
