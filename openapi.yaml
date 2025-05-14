@@ -1,60 +1,231 @@
 openapi: 3.1.0
 info:
-  title: MLB Lineups Tool
-  description: Retrieve confirmed MLB lineups from the official MLB Stats API.
-  version: 1.0.0
+  title: RBI Audit Backend
+  version: 1.1.0
+  description: |
+    Backend API powering GPT-based RBI audit agent using verified 2025-compatible data sources.
 servers:
-  - url: https://your-deployment.com
-    description: Your deployed backend that calls statsapi.mlb.com
+  - url: https://mlbrbis-1.onrender.com/api/v1
+    description: Render backend (production)
 paths:
-  /lineups:
+  /identifiers:
     get:
-      operationId: getMlbLineups
-      summary: Get confirmed MLB lineups for a date
-      description: Returns confirmed starting lineups for all MLB games on a given date.
+      operationId: getPlayerIdentifiers
+      summary: Get player ID mappings from Chadwick register.
       parameters:
-        - name: date
+        - name: playerName
           in: query
           required: true
           schema:
             type: string
-            format: date
-            example: 2024-09-01
       responses:
         '200':
-          description: Confirmed lineups returned successfully
+          description: Mapped player IDs
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    game:
-                      type: string
-                    homeTeam:
-                      type: string
-                    awayTeam:
-                      type: string
-                    homeLineup:
-                      type: array
-                      items:
-                        type: object
-                        properties:
-                          fullName:
-                            type: string
-                          position:
-                            type: string
-                          battingOrder:
-                            type: string
-                    awayLineup:
-                      type: array
-                      items:
-                        type: object
-                        properties:
-                          fullName:
-                            type: string
-                          position:
-                            type: string
-                          battingOrder:
-                            type: string
+                type: object
+                properties:
+                  mlbamId:
+                    type: string
+                  fangraphsId:
+                    type: string
+                  espnId:
+                    type: string
+
+  /lineup-slot:
+    get:
+      operationId: getLineupSlot
+      summary: Get confirmed lineup slot.
+      parameters:
+        - name: mlbamId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Confirmed lineup slot
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  slot:
+                    type: string
+
+  /pa-projection:
+    get:
+      operationId: getPAProjection
+      summary: Get projected plate appearances.
+      parameters:
+        - name: mlbamId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Projected plate appearances
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projectedPAs:
+                    type: integer
+
+  /power-metrics:
+    get:
+      operationId: getPowerMetrics
+      summary: Get Statcast power metrics.
+      parameters:
+        - name: mlbamId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Power metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  barrelRate:
+                    type: number
+                  xSLG:
+                    type: number
+                  hardHitPercent:
+                    type: number
+                  avgExitVelocity:
+                    type: number
+
+  /opponent-starter:
+    get:
+      operationId: getOpponentStarterMetrics
+      summary: Get SP handedness, xERA, HR/9.
+      parameters:
+        - name: team
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Opponent SP stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  handedness:
+                    type: string
+                  xERA:
+                    type: number
+                  hrPer9:
+                    type: number
+
+  /bullpen-fatigue:
+    get:
+      operationId: getBullpenFatigue
+      summary: Get bullpen fatigue score.
+      parameters:
+        - name: team
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Bullpen fatigue score
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fatigueScore:
+                    type: number
+
+  /park-weather-vegas:
+    get:
+      operationId: getParkWeatherVegas
+      summary: Get park factor, weather, and Vegas totals.
+      parameters:
+        - name: gameId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Combined data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  parkFactor:
+                    type: number
+                  weather:
+                    type: object
+                    properties:
+                      temperature:
+                        type: number
+                      windSpeed:
+                        type: number
+                      windDirection:
+                        type: string
+                  vegasTotal:
+                    type: number
+                  teamTotal:
+                    type: number
+
+  /recent-form:
+    get:
+      operationId: getRecentFormMetrics
+      summary: Get xSLG delta and multi-RBI game log.
+      parameters:
+        - name: mlbamId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Recent form stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  xSLGDeltaLast10:
+                    type: number
+                  multiRBIGames:
+                    type: integer
+
+  /pitch-type-edge:
+    get:
+      operationId: getPitchTypeEdge
+      summary: Get xwOBA vs pitch types and mmFastball%.
+      parameters:
+        - name: mlbamId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pitch-type edge
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  xwOBA:
+                    type: object
+                    additionalProperties:
+                      type: number
+                  mmFastballPercent:
+                    type: number
