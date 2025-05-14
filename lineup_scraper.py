@@ -1,35 +1,32 @@
 import requests
 
-def get_lineups_for_date(target_date: str):
-    url = f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&date={target_date}&hydrate=lineups,probablePitcher"
-    r = requests.get(url, timeout=10)
-    data = r.json()
+def get_lineups_for_date(target_date):
+    url = f"https://mattgorb.github.io/dailymlblineups/{target_date}.json"
+    try:
+        r = requests.get(url, timeout=10)
+        data = r.json()
+    except Exception as e:
+        print(f"❌ Error fetching lineups for {target_date}: {e}")
+        return []
 
     results = []
 
-    for game in data.get("dates", [])[0].get("games", []):
-        for team_side in ["away", "home"]:
-            team_data = game.get("teams", {}).get(team_side, {})
-            team_info = team_data.get("team", {})
-            team_abbr = team_info.get("abbreviation") or team_info.get("name")
-            lineup = team_data.get("lineup", {}).get("lineupPositions", [])
+    for game in data:
+        team_abbr = game.get("team")
+        players = game.get("lineup", [])
+        if not team_abbr or not players:
+            continue
 
-            if not team_abbr or not lineup:
-                continue
-
-            players = []
-            for spot in lineup:
-                player = spot.get("player")
-                if player:
-                    players.append({
-                        "name": player["fullName"],
-                        "mlbamId": player["id"],
-                        "slot": spot["battingOrder"]
-                    })
-
-            results.append({
-                "team": team_abbr,
-                "players": sorted(players, key=lambda p: int(p["slot"]))
-            })
+        results.append({
+            "team": team_abbr,
+            "players": [
+                {
+                    "name": p["name"],
+                    "mlbamId": p["mlbamId"],
+                    "slot": p.get("battingOrder", 0)
+                }
+                for p in players
+            ]
+        })
 
     return results
