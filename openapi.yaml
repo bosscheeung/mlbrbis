@@ -1,38 +1,38 @@
 openapi: 3.1.0
 info:
   title: RBI Audit Backend
-  version: 1.1.0
+  version: 1.2.0
   description: |
-    Backend API powering GPT-based RBI audit agent using verified 2025-compatible data sources.
+    GPT-connected backend for fully automated 2025 MLB RBI audit. Includes player-level endpoints
+    and batch audit of all confirmed hitters in today's lineups.
 servers:
   - url: https://mlbrbis-1.onrender.com/api/v1
-    description: Render backend (production)
+    description: Render backend
 paths:
-  /identifiers:
+  /audit/today:
     get:
-      operationId: getPlayerIdentifiers
-      summary: Get player ID mappings from Chadwick register.
-      parameters:
-        - name: playerName
-          in: query
-          required: true
-          schema:
-            type: string
+      operationId: auditAllTodayHitters
+      summary: Run a full RBI audit for all confirmed hitters in today's lineups.
       responses:
         '200':
-          description: Mapped player IDs
+          description: RBI audit results
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  mlbamId:
-                    type: string
-                  fangraphsId:
-                    type: string
-                  espnId:
-                    type: string
-
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    team:
+                      type: string
+                    mlbamId:
+                      type: string
+                    slot:
+                      type: integer
+                    audit:
+                      type: object
   /lineup-slot:
     get:
       operationId: getLineupSlot
@@ -53,179 +53,4 @@ paths:
                 properties:
                   slot:
                     type: string
-
-  /pa-projection:
-    get:
-      operationId: getPAProjection
-      summary: Get projected plate appearances.
-      parameters:
-        - name: mlbamId
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Projected plate appearances
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  projectedPAs:
-                    type: integer
-
-  /power-metrics:
-    get:
-      operationId: getPowerMetrics
-      summary: Get Statcast power metrics.
-      parameters:
-        - name: mlbamId
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Power metrics
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  barrelRate:
-                    type: number
-                  xSLG:
-                    type: number
-                  hardHitPercent:
-                    type: number
-                  avgExitVelocity:
-                    type: number
-
-  /opponent-starter:
-    get:
-      operationId: getOpponentStarterMetrics
-      summary: Get SP handedness, xERA, HR/9.
-      parameters:
-        - name: team
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Opponent SP stats
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  handedness:
-                    type: string
-                  xERA:
-                    type: number
-                  hrPer9:
-                    type: number
-
-  /bullpen-fatigue:
-    get:
-      operationId: getBullpenFatigue
-      summary: Get bullpen fatigue score.
-      parameters:
-        - name: team
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Bullpen fatigue score
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  fatigueScore:
-                    type: number
-
-  /park-weather-vegas:
-    get:
-      operationId: getParkWeatherVegas
-      summary: Get park factor, weather, and Vegas totals.
-      parameters:
-        - name: gameId
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Combined data
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  parkFactor:
-                    type: number
-                  weather:
-                    type: object
-                    properties:
-                      temperature:
-                        type: number
-                      windSpeed:
-                        type: number
-                      windDirection:
-                        type: string
-                  vegasTotal:
-                    type: number
-                  teamTotal:
-                    type: number
-
-  /recent-form:
-    get:
-      operationId: getRecentFormMetrics
-      summary: Get xSLG delta and multi-RBI game log.
-      parameters:
-        - name: mlbamId
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Recent form stats
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  xSLGDeltaLast10:
-                    type: number
-                  multiRBIGames:
-                    type: integer
-
-  /pitch-type-edge:
-    get:
-      operationId: getPitchTypeEdge
-      summary: Get xwOBA vs pitch types and mmFastball%.
-      parameters:
-        - name: mlbamId
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Pitch-type edge
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  xwOBA:
-                    type: object
-                    additionalProperties:
-                      type: number
-                  mmFastballPercent:
-                    type: number
+  # ... you can add your other endpoints here (see earlier messages)
