@@ -1,21 +1,31 @@
 openapi: 3.1.0
 info:
-  title: RBI Audit Backend
-  version: 1.2.0
+  title: MLB Lineup Audit API
+  version: 1.0.0
   description: |
-    GPT-connected backend for fully automated 2025 MLB RBI audit. Includes player-level endpoints
-    and batch audit of all confirmed hitters in today's lineups.
+    Pulls full lineup audit data for a given MLB game date using live metrics (Statcast, Fangraphs, Vegas, and weather).
+
 servers:
   - url: https://mlbrbis-1.onrender.com/api/v1
-    description: Render backend
+    description: Production server on Render
+
 paths:
-  /audit/today:
+  /audit/{target}:
     get:
-      operationId: auditAllTodayHitters
-      summary: Run a full RBI audit for all confirmed hitters in today's lineups.
+      operationId: auditLineupsByDate
+      summary: Run a full audit for lineups on a given date
+      parameters:
+        - name: target
+          in: path
+          required: true
+          description: |
+            Use `"today"`, `"yesterday"`, or a specific date in the format `YYYY-MM-DD`.
+          schema:
+            type: string
+            example: "2024-07-01"
       responses:
         '200':
-          description: RBI audit results
+          description: Audit results per player
           content:
             application/json:
               schema:
@@ -28,29 +38,21 @@ paths:
                     team:
                       type: string
                     mlbamId:
-                      type: string
+                      type: integer
                     slot:
                       type: integer
                     audit:
                       type: object
-  /lineup-slot:
-    get:
-      operationId: getLineupSlot
-      summary: Get confirmed lineup slot.
-      parameters:
-        - name: mlbamId
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Confirmed lineup slot
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  slot:
-                    type: string
-  # ... you can add your other endpoints here (see earlier messages)
+                      properties:
+                        powerSignal:
+                          type: object
+                        volumeOpportunity:
+                          type: object
+                        opponentWeakness:
+                          type: object
+                        runEnvironment:
+                          type: object
+                        recentForm:
+                          type: object
+                        pitchEdge:
+                          type: object
