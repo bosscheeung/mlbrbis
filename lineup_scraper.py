@@ -9,22 +9,20 @@ def get_today_lineups():
 
     results = []
 
-    for card in soup.select(".lineup-card"):
-        team_abbr = card.select_one(".lineup__abbr")
+    for section in soup.select(".lineup"):
+        team_abbr = section.select_one(".lineup__abbr")
         if not team_abbr:
             continue
-        team = team_abbr.text.strip()
 
-        # Determine lineup status
-        confirmed = "is-confirmed" in card.get("class", [])
+        team = team_abbr.text.strip()
+        confirmed = "is-confirmed" in section.get("class", [])
 
         players = []
-        for i, row in enumerate(card.select(".lineup__player")):
+        for i, row in enumerate(section.select(".lineup__player")):
             name_tag = row.select_one(".lineup__player__name")
             if name_tag:
-                name = name_tag.text.strip()
                 players.append({
-                    "name": name,
+                    "name": name_tag.text.strip(),
                     "slot": i + 1
                 })
 
