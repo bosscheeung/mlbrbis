@@ -2,14 +2,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from id_mapper import load_chadwick_mapping
 from lineup_scraper import get_today_lineups
+from savant_scraper import get_pitch_type_edge_real, get_recent_form_real
+
 import requests
 from bs4 import BeautifulSoup
-from io import StringIO
 import csv
+from io import StringIO
 
 app = FastAPI()
 
-# Enable CORS so GPT can call it
+# Enable CORS for GPT
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,15 +19,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 🔹 Power Metrics
 def get_power_metrics_real(mlbam_id):
     url = "https://baseballsavant.mlb.com/leaderboard/statcast?type=batter&stat=barrel_rate&year=2025&min=1&sort=7&csv=false"
     headers = {"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
-
     try:
         r = requests.get(url, headers=headers, timeout=10)
         r.raise_for_status()
         data = r.json()
-
         for row in data["data"]:
             if str(row.get("player_id")) == str(mlbam_id):
                 return {
@@ -34,80 +36,72 @@ def get_power_metrics_real(mlbam_id):
                     "hardHitPercent": float(row.get("hard_hit_percent", 0)),
                     "avgExitVelocity": float(row.get("avg_hit_speed", 0))
                 }
-
         return None
     except Exception as e:
-        print(f"❌ Power data error for {mlbam_id}: {e}")
+        print(f"❌ Power metrics error for {mlbam_id}: {e}")
         return None
+
+# 🔹 Fangraphs SP Stats
 def get_fangraphs_sp_stats(team_name):
     url = "https://www.fangraphs.com/leaders.aspx?pos=all&stats=pit&lg=all&qual=10&type=1&season=2025"
     headers = {"User-Agent": "Mozilla/5.0"}
-
     try:
         res = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(res.text, "html.parser")
         table = soup.find("table", {"class": "rgMasterTable"})
-
         if not table:
             return {}
-
         rows = table.find_all("tr")[1:]
-
         for row in rows:
             cells = row.find_all("td")
-            if not cells or len(cells) < 12:
+            if len(cells) < 12:
                 continue
-
             team_cell = cells[2].text.strip().upper()
             if team_cell == team_name.upper():
                 return {
                     "xERA": float(cells[11].text.strip()),
                     "hrPer9": float(cells[8].text.strip())
                 }
-
         return {}
     except Exception as e:
         print(f"❌ Fangraphs error: {e}")
         return {}
+
+# 🔹 Bullpen Fatigue (RotoWire)
 def get_bullpen_fatigue_score(team_abbr):
     url = "https://www.rotowire.com/baseball/bullpen-report.php"
     headers = {"User-Agent": "Mozilla/5.0"}
-
     try:
         r = requests.get(url, headers=headers)
         soup = BeautifulSoup(r.content, "html.parser")
         blocks = soup.select(".lineup.is-confirmed, .lineup")
-
         for block in blocks:
             abbr = block.select_one(".lineup__abbr")
             if abbr and abbr.text.strip().upper() == team_abbr.upper():
-                count = 0
-                for p in block.select(".lineup__player__stats"):
-                    if "20" in p.text:
-                        count += 1
+                count = sum("20" in p.text for p in block.select(".lineup__player__stats"))
                 return 2.5 if count >= 3 else 1.0
-
         return 1.0
     except Exception as e:
         print(f"❌ RotoWire error: {e}")
         return 1.0
+
 def get_opponent_weakness_real(team):
     stats = get_fangraphs_sp_stats(team)
     return {
-        "handedness": "R",
+        "handedness": "R",  # could be improved from MLB API
         "xERA": stats.get("xERA", 4.25),
         "hrPer9": stats.get("hrPer9", 1.3),
         "bullpenFatigueScore": get_bullpen_fatigue_score(team)
     }
+
+# 🔹 Park Factor (ESPN)
 def get_park_factor(team_abbr):
     url = "https://www.espn.com/mlb/stats/parkfactor"
     headers = {"User-Agent": "Mozilla/5.0"}
-
     try:
         res = requests.get(url, headers=headers)
         soup = BeautifulSoup(res.text, "html.parser")
         rows = soup.find_all("tr")
-
         for row in rows:
             cols = row.find_all("td")
             if len(cols) >= 3:
@@ -115,31 +109,27 @@ def get_park_factor(team_abbr):
                 factor = cols[2].text.strip()
                 if team_abbr.upper() in team:
                     return float(factor)
-
         return 100.0
     except Exception as e:
-        print(f"❌ ESPN park factor error: {e}")
+        print(f"❌ Park factor error: {e}")
         return 100.0
+
+# 🔹 Vegas Totals (VegasInsider)
 def get_vegas_totals(team_abbr):
     url = "https://www.vegasinsider.com/mlb/odds/las-vegas/"
     headers = {"User-Agent": "Mozilla/5.0"}
-
     try:
         r = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(r.text, "html.parser")
         games = soup.select(".viGameScorebox")
-
         for game in games:
             teams = game.select(".viTeamName")
             odds = game.select(".viConsensusLine")
-
             if len(teams) < 2 or len(odds) < 1:
                 continue
-
             team1 = teams[0].text.strip().upper()
             team2 = teams[1].text.strip().upper()
             total = odds[0].text.strip()
-
             if team_abbr.upper() in team1 or team_abbr.upper() in team2:
                 try:
                     vegas_total = float(total.split()[0])
@@ -149,11 +139,11 @@ def get_vegas_totals(team_abbr):
                     "vegasTotal": vegas_total,
                     "teamTotal": round(vegas_total / 2, 2)
                 }
-
         return {"vegasTotal": 9.0, "teamTotal": 4.5}
     except Exception as e:
         print(f"❌ Vegas odds error: {e}")
         return {"vegasTotal": 9.0, "teamTotal": 4.5}
+
 def get_run_environment_live(team):
     vegas = get_vegas_totals(team)
     return {
@@ -166,23 +156,21 @@ def get_run_environment_live(team):
         "vegasTotal": vegas["vegasTotal"],
         "teamTotal": vegas["teamTotal"]
     }
-from savant_scraper import get_pitch_type_edge_real, get_recent_form_real
+
+# 🔹 Projected PAs (FanGraphs Depth Charts)
 def get_projected_pa(name):
     url = "https://www.fangraphs.com/projections?pos=all&stats=bat&type=fangraphsdc"
     headers = {"User-Agent": "Mozilla/5.0"}
-
     try:
         r = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(r.text, "html.parser")
         table = soup.find("table")
         rows = table.find_all("tr")
         clean_name = name.lower().replace(".", "").replace(" jr", "").strip()
-
         for row in rows:
             cols = row.find_all("td")
             if not cols or len(cols) < 6:
                 continue
-
             player_name = cols[0].text.strip().lower().replace(".", "").replace(" jr", "").strip()
             if clean_name in player_name or player_name in clean_name:
                 try:
@@ -190,16 +178,16 @@ def get_projected_pa(name):
                     return pa
                 except:
                     return None
-
         return None
     except Exception as e:
         print(f"❌ PA scrape error: {e}")
         return None
+
+# 🔹 Final Endpoint
 @app.get("/api/v1/audit/today")
 def audit_all_today_hitters():
     chadwick_map = load_chadwick_mapping()
     lineups = get_today_lineups()
-
     results = []
 
     for team_lineup in lineups:
@@ -208,7 +196,6 @@ def audit_all_today_hitters():
             name = player["name"]
             name_key = name.lower().strip()
             mlbam_id = chadwick_map.get(name_key)
-
             if not mlbam_id:
                 print(f"⚠️ No MLBAM ID for: {name}")
                 continue
@@ -242,3 +229,8 @@ def audit_all_today_hitters():
             })
 
     return results
+from fastapi.responses import FileResponse
+
+@app.get("/openapi.yaml", include_in_schema=False)
+def serve_openapi_spec():
+    return FileResponse("openapi.yaml", media_type="text/yaml")
