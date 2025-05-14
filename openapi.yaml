@@ -3,23 +3,26 @@ info:
   title: MLB Manual Lineup Audit API
   version: 1.0.0
   description: |
-    Submit plaintext MLB lineups to get a full player-by-player audit using live data.
+    Submit raw plaintext MLB lineups and receive full player-by-player audits with live stats.
+    This endpoint supports projected or confirmed lineups entered manually.
 
 servers:
   - url: https://mlbrbis-1.onrender.com/api/v1
-    description: Production server
+    description: Render-hosted backend
 
 paths:
   /audit/parse:
     post:
-      operationId: auditFromPlainText
-      summary: Run a full audit from a manually entered lineup
+      operationId: auditFromText
+      summary: Run a full audit from manually entered lineup text
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              required:
+                - text
               properties:
                 text:
                   type: string
@@ -30,7 +33,7 @@ paths:
                     3 Shohei Ohtani (DH)
       responses:
         '200':
-          description: Audit results per player
+          description: Full audit results per player
           content:
             application/json:
               schema:
