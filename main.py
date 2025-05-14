@@ -1,9 +1,8 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from datetime import date
-import requests
 import re
+import requests
 from bs4 import BeautifulSoup
 
 from id_mapper import load_chadwick_mapping, normalize_name
@@ -12,7 +11,6 @@ from weather_scraper import get_weather_scrape
 
 app = FastAPI()
 
-# Enable GPT plugin access
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,6 +18,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/")
+def root():
+    return {"status": "MLB audit API running"}
 
 @app.get("/openapi.yaml", include_in_schema=False)
 def serve_yaml():
@@ -82,13 +84,9 @@ def parse_full_lineup_block(text):
 
     for line in lines:
         clean = line.strip()
-
         if "Lineup" in clean and not clean.startswith("#"):
             if current_team and players:
-                team_blocks.append({
-                    "team": current_team,
-                    "players": players
-                })
+                team_blocks.append({"team": current_team, "players": players})
             current_team = clean.replace("Lineup", "").strip()
             players = []
             slot = 0
@@ -96,7 +94,7 @@ def parse_full_lineup_block(text):
             continue
 
         if reading_players:
-            match = re.match(r"(\d+)\s+([A-Za-z .'-]+)(\s+\(.+\))?", clean)
+            match = re.match(r"(\d+)[.)]?\s+([A-Za-z .'-]+)", clean)
             if match:
                 slot += 1
                 player_name = match.group(2).strip()
@@ -105,12 +103,12 @@ def parse_full_lineup_block(text):
                 reading_players = False
 
     if current_team and players:
-        team_blocks.append({
-            "team": current_team,
-            "players": players
-        })
+        team_blocks.append({"team": current_team, "players": players})
 
     return team_blocks
+
+# === HELPERS ===
+
 def get_power_metrics(mlbam_id):
     try:
         url = "https://baseballsavant.mlb.com/leaderboard/statcast?type=batter&stat=barrel_rate&year=2025&min=1&sort=7&csv=false"
@@ -126,8 +124,9 @@ def get_power_metrics(mlbam_id):
                     "avgExitVelocity": float(row.get("avg_hit_speed", 0))
                 }
     except:
-        pass
+        return None
     return None
+
 def get_projected_pa(name):
     try:
         r = requests.get("https://www.fangraphs.com/projections?pos=all&stats=bat&type=fangraphsdc", headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
@@ -141,6 +140,7 @@ def get_projected_pa(name):
     except:
         pass
     return 5
+
 def get_opponent_stats(team_abbr):
     return {
         "handedness": "R",
@@ -148,6 +148,7 @@ def get_opponent_stats(team_abbr):
         "hrPer9": 1.3,
         "bullpenFatigueScore": 2.0
     }
+
 PARK_FACTORS_2025 = {
     "Progressive Field": 98,
     "Coors Field": 117,
@@ -155,8 +156,8 @@ PARK_FACTORS_2025 = {
     "Dodger Stadium": 101,
     "Fenway Park": 105,
     "Great American Ball Park": 113
-    # Add more as needed
 }
+
 def get_run_environment(team_abbr, weather_data=None):
     return {
         "parkFactor": PARK_FACTORS_2025.get(team_abbr.upper(), 100),
@@ -167,37 +168,4 @@ def get_run_environment(team_abbr, weather_data=None):
         },
         "vegasTotal": 9.0,
         "teamTotal": 4.5
-    }
-def get_weather_scrape(team_abbr):
-    try:
-        url = "https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=today"
-        schedule = requests.get(url).json()
-
-        for game in schedule.get("dates", [])[0].get("games", []):
-            teams = game.get("teams", {})
-            for side in ["home", "away"]:
-                info = teams.get(side, {}).get("team", {})
-                if info.get("abbreviation", "").upper() == team_abbr.upper():
-                    preview_url = f"https://www.mlb.com{game.get('content', {}).get('link', '')}"
-                    page = requests.get(preview_url).text
-                    soup = BeautifulSoup(page, "html.parser")
-                    weather_text = soup.get_text()
-                    return parse_weather_string(weather_text)
-    except Exception as e:
-        print(f"❌ Weather scrape error: {e}")
-
-    return {
-        "temperature": 75,
-        "windSpeed": 8,
-        "windDirection": "Unknown"
-    }
-
-def parse_weather_string(text):
-    temp_match = re.search(r"(\d{2,3}) ?°F", text)
-    wind_match = re.search(r"Wind:? (\d{1,2}) mph (Out|In|Left|Right|Center|to [A-Z]+)", text, re.IGNORECASE)
-
-    return {
-        "temperature": int(temp_match.group(1)) if temp_match else 75,
-        "windSpeed": int(wind_match.group(1)) if wind_match else 8,
-        "windDirection": wind_match.group(2) if wind_match else "Unknown"
     }
