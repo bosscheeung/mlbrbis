@@ -1,11 +1,27 @@
 import csv
+import requests
+from io import StringIO
 
-def load_chadwick_mapping(filepath="register.csv"):
+CHADWICK_BASE_URL = "https://raw.githubusercontent.com/chadwickbureau/register/master/csv/"
+CHADWICK_PARTS = [f"people-{x}.csv" for x in list("0123456789abcdefghijklmnopqrstuvwxyz")]
+
+def load_chadwick_mapping():
     name_to_id = {}
-    with open(filepath, newline='', encoding='utf-8') as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            name = row["name_last"] + ", " + row["name_first"]
-            full_name = name.replace(",", "").strip().lower()
-            name_to_id[full_name] = row["mlbam_id"]
+
+    for filename in CHADWICK_PARTS:
+        url = CHADWICK_BASE_URL + filename
+        try:
+            print(f"🔄 Fetching {filename}...")
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            csv_data = StringIO(response.text)
+            reader = csv.DictReader(csv_data)
+            for row in reader:
+                if row.get("mlbam_id"):
+                    full_name = f"{row['name_first']} {row['name_last']}".lower().strip()
+                    name_to_id[full_name] = row["mlbam_id"]
+        except Exception as e:
+            print(f"❌ Failed to fetch {filename}: {e}")
+
+    print(f"✅ Loaded {len(name_to_id)} MLBAM IDs from Chadwick.")
     return name_to_id
