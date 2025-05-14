@@ -227,7 +227,10 @@ def audit_all_today_hitters():
             pa = get_projected_pa(name)
 
             results.append({
-                "nam
+    "name": name,
+    ...
+})
+
 
 @app.get("/openapi.yaml", include_in_schema=False)
 def serve_openapi_spec():
