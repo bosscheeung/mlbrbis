@@ -8,31 +8,30 @@ def load_chadwick_mapping():
     filenames = [f"people-{s}.csv" for s in suffixes]
 
     name_to_id = {}
+    total_rows = 0
 
     for file in filenames:
         url = base_url + file
         try:
-            print(f"🔄 Downloading {file}...")
             response = requests.get(url, timeout=10)
             if response.status_code == 404:
-                print(f"⚠️  {file} not found (404), skipping.")
                 continue
             response.raise_for_status()
 
             reader = csv.DictReader(StringIO(response.text))
+
+            if not {"mlbam_id", "name_first", "name_last"}.issubset(reader.fieldnames):
+                print(f"⚠️ Skipping {file}: missing expected columns.")
+                continue
+
             for row in reader:
-                if row.get("mlbam_id"):
+                total_rows += 1
+                if row.get("mlbam_id") and row["mlbam_id"] != "":
                     full_name = f"{row['name_first']} {row['name_last']}".lower().strip()
                     name_to_id[full_name] = row["mlbam_id"]
 
         except Exception as e:
-            print(f"❌ Failed to load {file}: {e}")
-            continue
+            print(f"❌ Error loading {file}: {e}")
 
-    print(f"✅ Loaded {len(name_to_id)} MLBAM IDs from Chadwick")
+    print(f"✅ Loaded {len(name_to_id)} MLBAM IDs from {total_rows} rows")
     return name_to_id
-
-# Optional: run test directly
-if __name__ == "__main__":
-    mapping = load_chadwick_mapping()
-    print(mapping.get("ronald acuna jr"))
