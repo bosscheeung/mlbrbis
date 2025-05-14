@@ -1,38 +1,34 @@
 import requests
+from bs4 import BeautifulSoup
 
-def get_lineups_for_date(target_date):
-    url = f"https://mattgorb.github.io/dailymlblineups/{target_date}.json"
-    try:
-        r = requests.get(url, timeout=10)
-        data = r.json()
-    except Exception as e:
-        print(f"❌ Error fetching lineups for {target_date}: {e}")
-        return []
+def get_today_lineups():
+    url = "https://www.rotowire.com/baseball/daily-lineups.php"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    r = requests.get(url, headers=headers)
+    soup = BeautifulSoup(r.content, "html.parser")
 
     results = []
 
-    for game in data:
-        team_abbr = game.get("team")
-        players = game.get("lineup", [])
-        venue = game.get("venue", "")
-        weather = game.get("weather", {})
-
-        if not team_abbr or not players:
+    for card in soup.select(".lineup-card"):
+        team_abbr = card.select_one(".lineup__abbr")
+        if not team_abbr:
             continue
+        team = team_abbr.text.strip()
 
-        lineup = []
-        for player in players:
-            lineup.append({
-                "name": player["name"],
-                "mlbamId": player.get("mlbamId"),
-                "slot": player.get("battingOrder", 0)
+        players = []
+        for i, row in enumerate(card.select(".lineup__player")):
+            name_tag = row.select_one(".lineup__player__name")
+            if name_tag:
+                name = name_tag.text.strip()
+                players.append({
+                    "name": name,
+                    "slot": i + 1
+                })
+
+        if players:
+            results.append({
+                "team": team,
+                "players": players
             })
-
-        results.append({
-            "team": team_abbr,
-            "players": sorted(lineup, key=lambda p: p["slot"]),
-            "venue": venue,
-            "weather": weather
-        })
 
     return results
