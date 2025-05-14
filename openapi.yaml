@@ -1,25 +1,36 @@
 openapi: 3.1.0
 info:
-  title: MLB Lineup Audit API
+  title: MLB Manual Lineup Audit API
   version: 1.0.0
   description: |
-    Provides a full player-by-player lineup audit using live MLB data:
-    - Lineups from RotoWire
-    - Weather from MLB.com
-    - Statcast, Fangraphs, Vegas odds, etc.
+    Submit plaintext MLB lineups to get a full player-by-player audit using live data.
 
 servers:
   - url: https://mlbrbis-1.onrender.com/api/v1
     description: Production server
 
 paths:
-  /audit/today:
-    get:
-      operationId: auditTodayLineups
-      summary: Run a full audit for today’s confirmed lineups
+  /audit/parse:
+    post:
+      operationId: auditFromPlainText
+      summary: Run a full audit from a manually entered lineup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                  example: |
+                    Los Angeles Dodgers Lineup
+                    1 Mookie Betts (2B)
+                    2 Freddie Freeman (1B)
+                    3 Shohei Ohtani (DH)
       responses:
         '200':
-          description: Player audit results
+          description: Audit results per player
           content:
             application/json:
               schema:
@@ -35,6 +46,8 @@ paths:
                       type: integer
                     slot:
                       type: integer
+                    confirmed:
+                      type: boolean
                     audit:
                       type: object
                       properties:
