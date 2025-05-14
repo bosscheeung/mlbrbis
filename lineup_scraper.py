@@ -1,9 +1,7 @@
 import requests
-from datetime import date
 
-def get_today_lineups():
-    today = date.today().isoformat()
-    url = f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&date={today}&hydrate=lineups,probablePitcher"
+def get_lineups_for_date(target_date: str):
+    url = f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&date={target_date}&hydrate=lineups,probablePitcher"
     r = requests.get(url, timeout=10)
     data = r.json()
 
