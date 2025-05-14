@@ -1,85 +1,48 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from lineup_scraper import get_today_lineups
+from id_mapper import load_chadwick_mapping
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Open to ChatGPT calls
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.get("/api/v1/identifiers")
-def get_player_identifiers(playerName: str):
-    return {
-        "mlbamId": "123456",
-        "fangraphsId": "654321",
-        "espnId": "789012"
-    }
-
-@app.get("/api/v1/lineup-slot")
-def get_lineup_slot(mlbamId: str):
-    return {"slot": "2"}
-
-@app.get("/api/v1/pa-projection")
-def get_pa_projection(mlbamId: str):
-    return {"projectedPAs": 5}
-
-@app.get("/api/v1/power-metrics")
-def get_power_metrics(mlbamId: str):
-    return {
-        "barrelRate": 13.2,
-        "xSLG": 0.470,
-        "hardHitPercent": 44.1,
-        "avgExitVelocity": 91.0
-    }
-
-@app.get("/api/v1/opponent-starter")
-def get_opponent_starter_metrics(team: str):
-    return {
-        "handedness": "R",
-        "xERA": 3.92,
-        "hrPer9": 1.3
-    }
-
-@app.get("/api/v1/bullpen-fatigue")
-def get_bullpen_fatigue(team: str):
-    return {"fatigueScore": 2.4}
-
-@app.get("/api/v1/park-weather-vegas")
-def get_park_weather_vegas(gameId: str):
-    return {
-        "parkFactor": 102,
-        "weather": {
-            "temperature": 75,
-            "windSpeed": 8,
-            "windDirection": "Out to left"
-        },
-        "vegasTotal": 9.0,
-        "teamTotal": 4.7
-    }
-
-@app.get("/api/v1/recent-form")
-def get_recent_form_metrics(mlbamId: str):
-    return {
-        "xSLGDeltaLast10": 0.038,
-        "multiRBIGames": 3
-    }
-
-@app.get("/api/v1/pitch-type-edge")
-def get_pitch_type_edge(mlbamId: str):
-    return {
-        "xwOBA": {
-            "Fastball": 0.310,
-            "Slider": 0.278,
-            "Curveball": 0.250
-        },
-        "mmFastballPercent": 7.9
-    }
-
-from fastapi.responses import FileResponse
+@app.get("/api/v1/audit/today")
+def audit_all_today_hitters():
+    chadwick_map = load_chadwick_mapping()
+    lineups = get_today_lineups()
+    
+    results = []
+    for team_lineup in lineups:
+        team = team_lineup["team"]
+        for player in team_lineup["players"]:
+            name = player["name"]
+            slot = player["slot"]
+            mlbamId = chadwick_map.get(name.lower())
+            if not mlbamId:
+                continue
+            # In production, you'd call each audit function here
+            results.append({
+                "name": name,
+                "team": team,
+                "mlbamId": mlbamId,
+                "slot": slot,
+                "audit": {
+                    "powerSignal": {"barrelRate": 12.3},
+                    "volumeOpportunity": {"projectedPAs": 5},
+                    "opponentWeakness": {"xERA": 4.1},
+                    "runEnvironment": {"vegasTotal": 9.5},
+                    "recentForm": {"xSLGDeltaLast10": 0.033},
+                    "pitchEdge": {"mmFastballPercent": 8.2}
+                }
+            })
+    return results
 
 @app.get("/openapi.yaml", include_in_schema=False)
 def serve_openapi_spec():
