@@ -1,9 +1,9 @@
 import csv
 import json
 import os
+import re
 import requests
 from io import StringIO
-import re
 
 CACHE_FILE = "mlbam_cache.json"
 
@@ -15,13 +15,13 @@ def normalize_name(name):
     return name.strip()
 
 def load_chadwick_mapping():
-    # ✅ Step 1: Load cache if it exists
+    print("🔍 load_chadwick_mapping() called")
+
     if os.path.exists(CACHE_FILE):
-        print("✅ Loading from cache...")
+        print("✅ Loaded MLBAM cache from file.")
         with open(CACHE_FILE, "r") as f:
             return json.load(f)
 
-    # ✅ Step 2: Attempt to fetch raw CSVs from GitHub
     base_url = "https://raw.githubusercontent.com/chadwickbureau/register/refs/heads/master/data/"
     suffixes = list("0123456789abcdefghijklmnopqrstuvwxyz")
     filenames = [f"people-{s}.csv" for s in suffixes]
@@ -35,13 +35,9 @@ def load_chadwick_mapping():
             print(f"🔄 Fetching {file} ...")
             res = requests.get(url, timeout=10)
 
-            # Log and skip invalid files
-            content_type = res.headers.get("Content-Type", "unknown")
-            if res.status_code != 200:
-                print(f"⚠️ {file} status {res.status_code}, skipping.")
-                continue
-            if "html" in content_type:
-                print(f"⚠️ {file} returned HTML, skipping.")
+            content_type = res.headers.get("Content-Type", "")
+            if res.status_code != 200 or "html" in content_type:
+                print(f"⚠️ Skipping {file}: invalid content (status {res.status_code}, type {content_type})")
                 continue
 
             reader = csv.DictReader(StringIO(res.text))
@@ -55,21 +51,22 @@ def load_chadwick_mapping():
                     full_name = normalize_name(f"{row['name_first']} {row['name_last']}")
                     name_to_id[full_name] = row["key_mlbam"]
 
-            print(f"✅ Parsed {file} with {len(name_to_id)} IDs so far.")
+            print(f"✅ Parsed {file}: {len(name_to_id)} IDs collected so far.")
 
         except Exception as e:
             print(f"❌ Error loading {file}: {e}")
             continue
 
-    print(f"✅ Finished: {len(name_to_id)} MLBAM IDs loaded from {total_rows} rows.")
+    print(f"✅ Finished loading. Total IDs: {len(name_to_id)} from {total_rows} rows.")
 
     with open(CACHE_FILE, "w") as f:
         json.dump(name_to_id, f)
-        print("💾 Cache saved to mlbam_cache.json")
+        print("💾 Saved ID map to mlbam_cache.json")
 
     return name_to_id
 
-# Manual test
+# Optional manual test
 if __name__ == "__main__":
-    mapping = load_chadwick_mapping()
-    print("ronald acuna jr →", mapping.get(normalize_name("ronald acuna jr")))
+    ids = load_chadwick_mapping()
+    print("ronald acuna jr →", ids.get(normalize_name("ronald acuna jr")))
+    print("shohei ohtani →", ids.get(normalize_name("shohei ohtani")))
