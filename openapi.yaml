@@ -3,29 +3,23 @@ info:
   title: MLB Lineup Audit API
   version: 1.0.0
   description: |
-    Pulls full lineup audit data for a given MLB game date using live metrics (Statcast, Fangraphs, Vegas, and weather).
+    Provides a full player-by-player lineup audit using live MLB data:
+    - Lineups from RotoWire
+    - Weather from MLB.com
+    - Statcast, Fangraphs, Vegas odds, etc.
 
 servers:
   - url: https://mlbrbis-1.onrender.com/api/v1
-    description: Production server on Render
+    description: Production server
 
 paths:
-  /audit/{target}:
+  /audit/today:
     get:
-      operationId: auditLineupsByDate
-      summary: Run a full audit for lineups on a given date
-      parameters:
-        - name: target
-          in: path
-          required: true
-          description: |
-            Use `"today"`, `"yesterday"`, or a specific date in the format `YYYY-MM-DD`.
-          schema:
-            type: string
-            example: "2024-07-01"
+      operationId: auditTodayLineups
+      summary: Run a full audit for today’s confirmed lineups
       responses:
         '200':
-          description: Audit results per player
+          description: Player audit results
           content:
             application/json:
               schema:
