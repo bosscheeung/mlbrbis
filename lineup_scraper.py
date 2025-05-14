@@ -1,25 +1,37 @@
 import requests
-from bs4 import BeautifulSoup
+from datetime import date
 
 def get_today_lineups():
-    url = "https://www.fantasypros.com/mlb/lineups/today/"
-    headers = {"User-Agent": "Mozilla/5.0"}
-    r = requests.get(url, headers=headers)
-    soup = BeautifulSoup(r.content, "html.parser")
+    today = date.today().isoformat()
+    url = f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&date={today}&hydrate=lineups,probablePitcher"
+    r = requests.get(url, timeout=10)
+    data = r.json()
 
     results = []
-    lineup_sections = soup.select(".lineup__card")
 
-    for card in lineup_sections:
-        try:
-            team_name = card.select_one(".lineup__team__abbr").text.strip()
+    for game in data.get("dates", [])[0].get("games", []):
+        for team_side in ["away", "home"]:
+            team_data = game.get("teams", {}).get(team_side, {})
+            team_info = team_data.get("team", {})
+            team_abbr = team_info.get("abbreviation") or team_info.get("name")
+            lineup = team_data.get("lineup", {}).get("lineupPositions", [])
+
+            if not team_abbr or not lineup:
+                continue
+
             players = []
-            rows = card.select(".lineup__player")
-            for i, row in enumerate(rows):
-                name = row.select_one(".lineup__player__name").text.strip()
-                players.append({"name": name, "slot": i + 1})
-            results.append({"team": team_name, "players": players})
-        except Exception as e:
-            print(f"❌ Lineup parsing error: {e}")
-    
+            for spot in lineup:
+                player = spot.get("player")
+                if player:
+                    players.append({
+                        "name": player["fullName"],
+                        "mlbamId": player["id"],
+                        "slot": spot["battingOrder"]
+                    })
+
+            results.append({
+                "team": team_abbr,
+                "players": sorted(players, key=lambda p: int(p["slot"]))
+            })
+
     return results
