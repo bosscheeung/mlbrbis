@@ -14,19 +14,25 @@ def get_lineups_for_date(target_date):
     for game in data:
         team_abbr = game.get("team")
         players = game.get("lineup", [])
+        venue = game.get("venue", "")
+        weather = game.get("weather", {})
+
         if not team_abbr or not players:
             continue
 
+        lineup = []
+        for player in players:
+            lineup.append({
+                "name": player["name"],
+                "mlbamId": player.get("mlbamId"),
+                "slot": player.get("battingOrder", 0)
+            })
+
         results.append({
             "team": team_abbr,
-            "players": [
-                {
-                    "name": p["name"],
-                    "mlbamId": p["mlbamId"],
-                    "slot": p.get("battingOrder", 0)
-                }
-                for p in players
-            ]
+            "players": sorted(lineup, key=lambda p: p["slot"]),
+            "venue": venue,
+            "weather": weather
         })
 
     return results
