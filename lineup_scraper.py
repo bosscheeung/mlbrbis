@@ -15,6 +15,9 @@ def get_today_lineups():
             continue
         team = team_abbr.text.strip()
 
+        # Determine lineup status
+        confirmed = "is-confirmed" in card.get("class", [])
+
         players = []
         for i, row in enumerate(card.select(".lineup__player")):
             name_tag = row.select_one(".lineup__player__name")
@@ -28,7 +31,8 @@ def get_today_lineups():
         if players:
             results.append({
                 "team": team,
-                "players": players
+                "players": players,
+                "confirmed": confirmed
             })
 
     return results
