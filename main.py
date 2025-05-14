@@ -1,83 +1,80 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-import requests
-from datetime import datetime
 
 app = FastAPI()
 
-# Allow GPT/plugin calls
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Open to ChatGPT calls
+    allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
-@app.get("/lineups")
-def get_lineups(date: str = Query(None, description="Date in YYYY-MM-DD format. Defaults to today.")):
-    # Use today’s date if none is provided
-    if not date:
-        date = datetime.utcnow().strftime('%Y-%m-%d')
-
-    # Step 1: Get schedule for the date
-    schedule_url = "https://statsapi.mlb.com/api/v1/schedule"
-    schedule_params = {
-        "sportId": 1,
-        "date": date
+@app.get("/api/v1/identifiers")
+def get_player_identifiers(playerName: str):
+    return {
+        "mlbamId": "123456",
+        "fangraphsId": "654321",
+        "espnId": "789012"
     }
 
-    schedule_response = requests.get(schedule_url, params=schedule_params)
-    if schedule_response.status_code != 200:
-        return JSONResponse(status_code=502, content={"error": "Failed to fetch MLB schedule"})
+@app.get("/api/v1/lineup-slot")
+def get_lineup_slot(mlbamId: str):
+    return {"slot": "2"}
 
-    schedule_data = schedule_response.json()
-    result = []
+@app.get("/api/v1/pa-projection")
+def get_pa_projection(mlbamId: str):
+    return {"projectedPAs": 5}
 
-    for game_date in schedule_data.get("dates", []):
-        for game in game_date.get("games", []):
-            gamePk = game["gamePk"]
+@app.get("/api/v1/power-metrics")
+def get_power_metrics(mlbamId: str):
+    return {
+        "barrelRate": 13.2,
+        "xSLG": 0.470,
+        "hardHitPercent": 44.1,
+        "avgExitVelocity": 91.0
+    }
 
-            # Step 2: Fetch boxscore for each game
-            boxscore_url = f"https://statsapi.mlb.com/api/v1/game/{gamePk}/boxscore"
-            boxscore_response = requests.get(boxscore_url)
-            if boxscore_response.status_code != 200:
-                continue
+@app.get("/api/v1/opponent-starter")
+def get_opponent_starter_metrics(team: str):
+    return {
+        "handedness": "R",
+        "xERA": 3.92,
+        "hrPer9": 1.3
+    }
 
-            boxscore_data = boxscore_response.json()
-            teams = boxscore_data.get("teams", {})
-            total_confirmed = 0
+@app.get("/api/v1/bullpen-fatigue")
+def get_bullpen_fatigue(team: str):
+    return {"fatigueScore": 2.4}
 
-            game_info = {
-                "game": f"{game['teams']['away']['team']['name']} @ {game['teams']['home']['team']['name']}",
-                "homeTeam": game['teams']['home']['team']['name'],
-                "awayTeam": game['teams']['away']['team']['name'],
-                "homeLineup": [],
-                "awayLineup": []
-            }
+@app.get("/api/v1/park-weather-vegas")
+def get_park_weather_vegas(gameId: str):
+    return {
+        "parkFactor": 102,
+        "weather": {
+            "temperature": 75,
+            "windSpeed": 8,
+            "windDirection": "Out to left"
+        },
+        "vegasTotal": 9.0,
+        "teamTotal": 4.7
+    }
 
-            for side in ["home", "away"]:
-                players = teams.get(side, {}).get("players", {})
-                lineup = []
-                for player in players.values():
-                    if "battingOrder" in player:
-                        lineup.append({
-                            "fullName": player.get("person", {}).get("fullName", ""),
-                            "position": player.get("position", {}).get("abbreviation", ""),
-                            "battingOrder": player.get("battingOrder", "")
-                        })
+@app.get("/api/v1/recent-form")
+def get_recent_form_metrics(mlbamId: str):
+    return {
+        "xSLGDeltaLast10": 0.038,
+        "multiRBIGames": 3
+    }
 
-                # Sort by batting order
-                lineup = sorted(
-                    lineup,
-                    key=lambda x: int(x["battingOrder"]) if x["battingOrder"].isdigit() else 99
-                )
-
-                game_info[f"{side}Lineup"] = lineup
-                total_confirmed += len(lineup)
-
-            # Only include games with at least one confirmed lineup
-            if total_confirmed > 0:
-                result.append(game_info)
-
-    return JSONResponse(content=result, headers={"Cache-Control": "no-store"})
+@app.get("/api/v1/pitch-type-edge")
+def get_pitch_type_edge(mlbamId: str):
+    return {
+        "xwOBA": {
+            "Fastball": 0.310,
+            "Slider": 0.278,
+            "Curveball": 0.250
+        },
+        "mmFastballPercent": 7.9
+    }
