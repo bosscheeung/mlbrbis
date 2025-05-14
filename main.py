@@ -78,3 +78,10 @@ def get_pitch_type_edge(mlbamId: str):
         },
         "mmFastballPercent": 7.9
     }
+
+from fastapi.responses import FileResponse
+
+@app.get("/openapi.yaml", include_in_schema=False)
+def serve_openapi_spec():
+    return FileResponse("openapi.yaml", media_type="text/yaml")
+
