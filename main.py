@@ -32,6 +32,7 @@ def audit_today():
 
     for team_lineup in lineups:
         team = team_lineup["team"]
+        confirmed = team_lineup.get("confirmed", False)
         weather = get_weather_scrape(team)
 
         for player in team_lineup["players"]:
@@ -48,6 +49,7 @@ def audit_today():
                 "team": team,
                 "mlbamId": mlbam_id,
                 "slot": player["slot"],
+                "confirmed": confirmed,
                 "audit": {
                     "powerSignal": power or {"note": "Missing MLBAM ID"},
                     "volumeOpportunity": {
