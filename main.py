@@ -6,8 +6,8 @@ import requests
 from bs4 import BeautifulSoup
 
 from id_mapper import load_chadwick_mapping, normalize_name
-from savant_scraper import get_recent_form_real, get_pitch_type_edge_real
 from weather_scraper import get_weather_scrape
+from savant_scraper import get_recent_form_real, get_pitch_type_edge_real
 
 app = FastAPI()
 
@@ -50,8 +50,8 @@ async def audit_from_text(request: Request):
             mlbam_id = chadwick.get(key)
 
             power = get_power_metrics(mlbam_id) if mlbam_id else None
-            recent = get_recent_form_real(mlbam_id) if mlbam_id else {}
-            pitch = get_pitch_type_edge_real(mlbam_id) if mlbam_id else {}
+            recent = await get_recent_form_real(mlbam_id) if mlbam_id else {}
+            pitch = await get_pitch_type_edge_real(mlbam_id) if mlbam_id else {}
 
             results.append({
                 "name": name,
@@ -107,8 +107,6 @@ def parse_full_lineup_block(text):
 
     return team_blocks
 
-# === HELPERS ===
-
 def get_power_metrics(mlbam_id):
     try:
         url = "https://baseballsavant.mlb.com/leaderboard/statcast?type=batter&stat=barrel_rate&year=2025&min=1&sort=7&csv=false"
@@ -124,7 +122,7 @@ def get_power_metrics(mlbam_id):
                     "avgExitVelocity": float(row.get("avg_hit_speed", 0))
                 }
     except:
-        return None
+        pass
     return None
 
 def get_projected_pa(name):
