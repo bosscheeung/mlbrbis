@@ -15,10 +15,10 @@ def get_weather_scrape(team_abbr):
                     preview_url = f"https://www.mlb.com{game.get('content', {}).get('link', '')}"
                     page = requests.get(preview_url).text
                     soup = BeautifulSoup(page, "html.parser")
-                    weather_text = soup.get_text()
-                    return parse_weather_string(weather_text)
-    except Exception as e:
-        print(f"❌ Weather scrape error: {e}")
+                    text = soup.get_text()
+                    return parse_weather_string(text)
+    except:
+        pass
 
     return {
         "temperature": 75,
