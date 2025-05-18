@@ -4,11 +4,9 @@ info:
   version: 1.0.0
   description: |
     Submit raw plaintext MLB lineups and receive full player-by-player audits with live stats.
-    This endpoint supports projected or confirmed lineups entered manually.
 
 servers:
   - url: https://mlbrbis-1.onrender.com/api/v1
-    description: Render-hosted backend
 
 paths:
   /audit/parse:
@@ -28,41 +26,15 @@ paths:
                   type: string
                   example: |
                     Los Angeles Dodgers Lineup
-                    1 Mookie Betts (2B)
-                    2 Freddie Freeman (1B)
-                    3 Shohei Ohtani (DH)
+                    1 Mookie Betts
+                    2 Freddie Freeman
+                    3 Shohei Ohtani
       responses:
         '200':
-          description: Full audit results per player
+          description: Full audit results
           content:
             application/json:
               schema:
                 type: array
                 items:
                   type: object
-                  properties:
-                    name:
-                      type: string
-                    team:
-                      type: string
-                    mlbamId:
-                      type: integer
-                    slot:
-                      type: integer
-                    confirmed:
-                      type: boolean
-                    audit:
-                      type: object
-                      properties:
-                        powerSignal:
-                          type: object
-                        volumeOpportunity:
-                          type: object
-                        opponentWeakness:
-                          type: object
-                        runEnvironment:
-                          type: object
-                        recentForm:
-                          type: object
-                        pitchEdge:
-                          type: object
