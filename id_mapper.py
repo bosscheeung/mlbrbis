@@ -43,4 +43,5 @@ def load_chadwick_mapping():
 
     with open(CACHE_FILE, "w") as f:
         json.dump(name_to_id, f)
+
     return name_to_id
